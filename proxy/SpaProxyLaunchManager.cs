@@ -209,7 +209,7 @@ try
 catch
 {{
 }}";
-                    var stopScriptInfo = new ProcessStartInfo(
+                    var stopScriptInfo terminal= new ProcessStartInfo(
                         "powershell.exe",
                         string.Join(" ", "-NoProfile", "-C", stopScript))
                     {
@@ -219,15 +219,27 @@ catch
 
                     _stopScript = Process.Start(stopScriptInfo);
                 }
-                if (OperatingSystem.IsMacOS() && _spaProcess != null)
+                if (OperatingSystem.IsMacCatalyst() && _spaProcess != null)
                 {
-                    var stopScript = @$"ps -p {Environment.ProcessId} > /dev/null;
+                    var stopScript = @$"
+get_child_processes ()
+{{
+  local children=$(ps -o pid= --ppid ""$1"")
+
+  for pid in $children
+  do
+    get_child_processes ""$pid""
+  done
+
+  echo ""$children""
+}}
+ps -p {Environment.ProcessId} > /dev/null;
 while [ $? -eq 0 ]
 do
 sleep 1;
 ps -p {Environment.ProcessId} > /dev/null;
 done
-pkill -P {_spaProcess.Id} > /dev/null;";
+pkill -P $(get_child_processes {_spaProcess.Id}) > /dev/null;";
 
                     var stopScriptInfo = new ProcessStartInfo(
                         "/bin/bash",
